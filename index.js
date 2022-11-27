@@ -1,17 +1,16 @@
 const { Client, GatewayIntentBits } = require("discord.js");
-const { handleReady } = require("./handlers/ready");
-const { handleMessage } = require("./handlers/message");
+const { Handler } = require("./handlers");
 
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
     GatewayIntentBits.GuildMessages,
+    GatewayIntentBits.GuildVoiceStates,
     GatewayIntentBits.MessageContent,
     GatewayIntentBits.GuildMessageReactions,
   ],
 });
 
-handleReady(client);
-handleMessage(client);
+const handler = new Handler(client);
 
-client.login(process.env.DISCORD_BOT_TOKEN);
+handler.start();
