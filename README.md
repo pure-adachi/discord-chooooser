@@ -15,3 +15,4 @@ https://discord.com/api/oauth2/authorize?client_id=1046364323951431700&permissio
 - [ ] 後からの参加者を考慮
 - [ ] 途中退出者を考慮?
 - [ ] リファクタリング
+- [ ] 当選率考慮（過去メッセージから）

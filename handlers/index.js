@@ -1,4 +1,5 @@
 const { Collection, Events } = require("discord.js");
+const { Embed } = require("./embed");
 
 exports.Handler = class Handler {
   constructor(client) {
@@ -35,15 +36,50 @@ exports.Handler = class Handler {
 
     this.client.application.commands.set(data);
 
-    this.client.on("interactionCreate", async (interaction) => {
+    this.client.on(Events.InteractionCreate, async (interaction) => {
       if (!interaction.isCommand()) return;
 
       if (interaction.commandName === "chooooser") {
-        await this.replyChooseMember(
-          interaction,
-          interaction.member.voice.channel
-        );
+        const joinedVoiceChannel = this.getVoiceChannel(interaction);
+
+        if (joinedVoiceChannel) {
+          const reply = new Embed(joinedVoiceChannel).getReply();
+          const message = await interaction.reply(reply);
+          message.react("❌");
+        } else {
+          await this.replyJoiningVoiceChannel(interaction);
+        }
       }
+    });
+
+    this.client.on(Events.InteractionCreate, async (interaction) => {
+      if (!interaction.isButton()) return;
+
+      if (interaction.customId === "customId") {
+        await this.replyChooseMember(interaction);
+      }
+    });
+
+    this.client.on(Events.MessageReactionAdd, (reaction, user) => {
+      if (user.bot) return;
+      if (reaction.emoji.name !== "❌") return;
+
+      const receivedEmbed = reaction.message.embeds[0];
+
+      const xReaction = reaction.message.reactions.cache.find(
+        (react) => react.emoji.name === "❌"
+      );
+
+      const channelIdField = receivedEmbed.fields.find(
+        ({ name }) => name === "ChannelID"
+      );
+
+      const channel = this.client.channels.cache.get(channelIdField.value);
+      const reply = new Embed(
+        channel,
+        xReaction.users.cache.values()
+      ).getReply();
+      reaction.message.edit(reply);
     });
   }
 
@@ -52,18 +88,28 @@ exports.Handler = class Handler {
       if (!message.mentions.users.has(this.client.user.id)) return;
       if (message.author.id === this.client.user.id) return;
 
-      this.replyChooseMember(message, message.member.voice.channel);
+      this.replyChooseMember(message);
     });
   }
 
-  replyChooseMember(r, joinedVoiceChannel) {
+  replyChooseMember(r) {
+    const joinedVoiceChannel = this.getVoiceChannel(r);
+
     if (joinedVoiceChannel) {
       const member = joinedVoiceChannel.members.random();
       const memberName = member.nickname || member.user.username;
 
       return r.reply(`選ばれたのは ${memberName} さんです。`);
     } else {
-      return r.reply("ボイスチャンネルに入室しましょう");
+      return this.replyJoiningVoiceChannel(r);
     }
+  }
+
+  getVoiceChannel(r) {
+    return r.member.voice.channel;
+  }
+
+  replyJoiningVoiceChannel(r) {
+    return r.reply("ボイスチャンネルに入室しましょう");
   }
 };
