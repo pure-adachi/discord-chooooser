@@ -21,7 +21,7 @@ exports.Embed = class Embed {
     );
 
     return {
-      embeds: [this.generateEmbed()],
+      embeds: [this.getEmbed()],
       components: [btn],
       fetchReply: true,
     };
@@ -38,7 +38,20 @@ exports.Embed = class Embed {
     );
   }
 
-  generateEmbed() {
+  getFinishedEmbed() {
+    return new EmbedBuilder()
+      .setColor(0x0099ff)
+      .setTitle(`${this.channel.name} チャンネルでの抽選は終了しました。`)
+      .setURL("https://github.com/pure-adachi/discord-chooooser")
+      .setAuthor({
+        name: "Chooooser",
+        iconURL:
+          "https://res.cloudinary.com/dbqa4qhvd/image/upload/v1669553905/chooooser_kdpyyw.png",
+        url: "https://github.com/pure-adachi/discord-chooooser",
+      });
+  }
+
+  getEmbed() {
     const embed = new EmbedBuilder()
       .setColor(0x0099ff)
       .setTitle(`${this.channel.name} チャンネルで抽選を行います。`)
