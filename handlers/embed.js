@@ -14,9 +14,10 @@ exports.Embed = class Embed {
   getReply() {
     const btn = new ActionRowBuilder().addComponents(
       new ButtonBuilder()
-        .setCustomId("customId")
+        .setCustomId("chooooser-button")
         .setLabel("抽選開始！")
         .setStyle(ButtonStyle.Primary)
+        .setDisabled(this.getTargetMembers().size === 0)
     );
 
     return {
@@ -26,13 +27,18 @@ exports.Embed = class Embed {
     };
   }
 
-  generateEmbed() {
-    const members = this.channel.members;
-    const targetMembers = members.filter(
+  getChannelMembers() {
+    return this.channel.members;
+  }
+
+  getTargetMembers() {
+    return this.getChannelMembers().filter(
       (member) =>
         this.ignoreUsers.map(({ id }) => id).indexOf(member.user.id) < 0
     );
+  }
 
+  generateEmbed() {
     const embed = new EmbedBuilder()
       .setColor(0x0099ff)
       .setTitle(`${this.channel.name} チャンネルで抽選を行います。`)
@@ -49,13 +55,15 @@ exports.Embed = class Embed {
       })
       .addFields({
         name: "抽選対象数",
-        value: `${targetMembers.size} / ${members.size}`,
+        value: `${this.getTargetMembers().size} / ${
+          this.getChannelMembers().size
+        }`,
       })
       .setFooter({
         text: "抽選対象から外して欲しい場合は、 ❌ のリアクションを押してください。",
       });
 
-    members.each((member) => {
+    this.getChannelMembers().each((member) => {
       const memberName = member.nickname || member.user.username;
       const isTarget =
         this.ignoreUsers.map(({ id }) => id).indexOf(member.user.id) < 0;

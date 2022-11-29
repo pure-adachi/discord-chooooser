@@ -55,32 +55,47 @@ exports.Handler = class Handler {
     this.client.on(Events.InteractionCreate, async (interaction) => {
       if (!interaction.isButton()) return;
 
-      if (interaction.customId === "customId") {
-        await this.replyChooseMember(interaction);
+      if (interaction.customId === "chooooser-button") {
+        const channel = this.getVoiceChannelByEmbed(interaction);
+        const xReaction = this.getXReaction(interaction);
+
+        const embed = new Embed(channel, xReaction.users.cache.values());
+
+        await this.replyChooseMember(interaction, embed.getTargetMembers());
       }
     });
 
     this.client.on(Events.MessageReactionAdd, (reaction, user) => {
       if (user.bot) return;
-      if (reaction.emoji.name !== "❌") return;
 
-      const receivedEmbed = reaction.message.embeds[0];
-
-      const xReaction = reaction.message.reactions.cache.find(
-        (react) => react.emoji.name === "❌"
-      );
-
-      const channelIdField = receivedEmbed.fields.find(
-        ({ name }) => name === "ChannelID"
-      );
-
-      const channel = this.client.channels.cache.get(channelIdField.value);
-      const reply = new Embed(
-        channel,
-        xReaction.users.cache.values()
-      ).getReply();
-      reaction.message.edit(reply);
+      this.updateEmbedByReaction(reaction);
     });
+
+    this.client.on(Events.MessageReactionRemove, (reaction) => {
+      this.updateEmbedByReaction(reaction);
+    });
+  }
+
+  updateEmbedByReaction(reaction) {
+    if (reaction.emoji.name !== "❌") return;
+
+    const channel = this.getVoiceChannelByEmbed(reaction);
+    const xReaction = this.getXReaction(reaction);
+    const reply = new Embed(channel, xReaction.users.cache.values()).getReply();
+
+    reaction.message.edit(reply);
+  }
+
+  getXReaction(r) {
+    return r.message.reactions.cache.find((react) => react.emoji.name === "❌");
+  }
+
+  getVoiceChannelByEmbed(r) {
+    const channelIdField = r.message.embeds[0].fields.find(
+      ({ name }) => name === "ChannelID"
+    );
+
+    return this.client.channels.cache.get(channelIdField.value);
   }
 
   handleMessageCreate() {
@@ -88,21 +103,21 @@ exports.Handler = class Handler {
       if (!message.mentions.users.has(this.client.user.id)) return;
       if (message.author.id === this.client.user.id) return;
 
-      this.replyChooseMember(message);
+      const joinedVoiceChannel = this.getVoiceChannel(message);
+
+      if (joinedVoiceChannel) {
+        return this.replyChooseMember(message, joinedVoiceChannel.members);
+      } else {
+        return this.replyJoiningVoiceChannel(joinedVoiceChannel);
+      }
     });
   }
 
-  replyChooseMember(r) {
-    const joinedVoiceChannel = this.getVoiceChannel(r);
+  replyChooseMember(r, members) {
+    const member = members.random();
+    const memberName = member.nickname || member.user.username;
 
-    if (joinedVoiceChannel) {
-      const member = joinedVoiceChannel.members.random();
-      const memberName = member.nickname || member.user.username;
-
-      return r.reply(`選ばれたのは ${memberName} さんです。`);
-    } else {
-      return this.replyJoiningVoiceChannel(r);
-    }
+    return r.reply(`選ばれたのは ${memberName} さんです。`);
   }
 
   getVoiceChannel(r) {

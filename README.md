@@ -10,8 +10,8 @@ https://discord.com/api/oauth2/authorize?client_id=1046364323951431700&permissio
 
 ## TODO
 
-- [ ] リアクションされる度に、embed を更新
-- [ ] ボタン押下で選ぶ
+- [x] ボタン押下で選ぶ
+- [x] リアクションされる度に、embed を更新
 - [ ] 後からの参加者を考慮
 - [ ] 途中退出者を考慮?
 - [ ] リファクタリング
