@@ -1,9 +1,12 @@
 const { Collection } = require("discord.js");
+const { Embed } = require("./embed");
 
 exports.Client = class Client {
   constructor(client) {
     this.client = client;
     this.events = [];
+    this.channel = null;
+    this.embedMessage = null;
   }
 
   login() {
@@ -14,9 +17,34 @@ exports.Client = class Client {
     this.client.commands = new Collection();
   }
 
-  on(event, callback) {
-    this.events.push({ event, callback });
+  setChannel(channel) {
+    this.channel = channel;
+  }
+
+  setEmbedMessage(message) {
+    this.embedMessage = message;
+  }
+
+  on(event, callback, isAdd = true) {
+    if (isAdd) this.events.push({ event, callback });
     this.client.on(event, callback);
+  }
+
+  reset() {
+    this.updateFinishedEmbed();
+    this.removeAllEvents();
+    this.channel = null;
+    this.embedMessage = null;
+  }
+
+  updateFinishedEmbed() {
+    if (!this.channel) return;
+    if (!this.embedMessage) return;
+
+    this.embedMessage.edit({
+      embeds: [new Embed(this.channel).getFinishedEmbed()],
+      components: [],
+    });
   }
 
   removeAllEvents() {

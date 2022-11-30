@@ -18,12 +18,15 @@ exports.Handler = class Handler {
   }
 
   handleReady() {
-    this.client.on(Events.ClientReady, () => {
-      console.log("Events.ClientReady");
-      this.client.user().setPresence({ game: { name: "chooooser" } });
+    this.client.on(
+      Events.ClientReady,
+      () => {
+        this.client.user().setPresence({ game: { name: "chooooser" } });
 
-      this.handleChooooserCommand();
-    });
+        this.handleChooooserCommand();
+      },
+      false
+    );
   }
 
   handleChooooserCommand() {
@@ -38,80 +41,76 @@ exports.Handler = class Handler {
 
     this.client.application().commands.set(data);
 
-    this.client.on(Events.InteractionCreate, async (interaction) => {
-      console.log("Events.InteractionCreate chooooser command");
+    this.client.on(
+      Events.InteractionCreate,
+      async (interaction) => {
+        if (!interaction.isCommand()) return;
 
-      if (!interaction.isCommand()) return;
+        if (interaction.commandName === "chooooser") {
+          const joinedVoiceChannel = this.getVoiceChannel(interaction);
 
-      if (interaction.commandName === "chooooser") {
-        const joinedVoiceChannel = this.getVoiceChannel(interaction);
+          if (joinedVoiceChannel) {
+            this.client.reset();
+            this.client.setChannel(joinedVoiceChannel);
 
-        if (joinedVoiceChannel) {
-          const reply = new Embed(joinedVoiceChannel).getReply();
-          const message = await interaction.reply(reply);
-          message.react("❌");
+            const reply = new Embed(joinedVoiceChannel).getReply();
+            const message = await interaction.reply(reply);
+            message.react("❌");
 
-          this.client.on(Events.VoiceStateUpdate, (oldState, newState) => {
-            console.log("Events.VoiceStateUpdate");
-            switch (joinedVoiceChannel.id) {
-              case newState.channelId:
-                this.updateEmbedByChangeVoiceState(joinedVoiceChannel, message);
-                break;
-              case oldState.channelId:
-                if (joinedVoiceChannel.members.size) {
-                  this.updateEmbedByChangeVoiceState(
-                    joinedVoiceChannel,
-                    message
-                  );
-                } else {
-                  message.edit({
-                    embeds: [new Embed(joinedVoiceChannel).getFinishedEmbed()],
-                    components: [],
-                  });
-                  this.client.removeAllEvents();
-                  this.handleChooooserCommand();
-                  this.handleMessageCreate();
-                }
-                break;
-            }
-          });
-
-          this.client.on(Events.InteractionCreate, async (interaction) => {
-            console.log("Events.InteractionCreate 抽選ボタン");
-            if (!interaction.isButton()) return;
-
-            if (interaction.customId === "chooooser-button") {
-              const channel = this.getVoiceChannelByEmbed(interaction);
-              const xReaction = this.getXReaction(interaction.message);
-
-              const embed = new Embed(channel, xReaction.users.cache.values());
-
-              await this.replyChooseMember(
-                interaction,
-                embed.getTargetMembers()
-              );
-            }
-          });
-
-          this.client.on(Events.MessageReactionAdd, (reaction, user) => {
-            console.log("Events.MessageReactionAdd");
-
-            if (user.bot) return;
-            if (reaction.emoji.name !== "❌") return;
-
-            this.updateEmbedByReaction(reaction);
-          });
-
-          this.client.on(Events.MessageReactionRemove, (reaction) => {
-            console.log("Events.MessageReactionRemove");
-            if (reaction.emoji.name !== "❌") return;
-
-            this.updateEmbedByReaction(reaction);
-          });
-        } else {
-          await this.replyJoiningVoiceChannel(interaction);
+            this.client.setEmbedMessage(message);
+            this.handleChooooserCommandEvents(message);
+          } else {
+            await this.replyJoiningVoiceChannel(interaction);
+          }
         }
+      },
+      false
+    );
+  }
+
+  handleChooooserCommandEvents(message) {
+    this.client.on(Events.VoiceStateUpdate, (oldState, newState) => {
+      switch (this.client.channel.id) {
+        case newState.channelId:
+          this.updateEmbedByChangeVoiceState(this.client.channel, message);
+          break;
+        case oldState.channelId:
+          if (this.client.channel.members.size) {
+            this.updateEmbedByChangeVoiceState(this.client.channel, message);
+          } else {
+            this.client.reset();
+          }
+          break;
       }
+    });
+
+    this.client.on(Events.InteractionCreate, async (interaction) => {
+      if (!interaction.isButton()) return;
+      if (interaction.customId !== "chooooser-button") return;
+
+      const xReaction = this.getXReaction(interaction.message);
+
+      const embed = new Embed(
+        this.client.channel,
+        xReaction.users.cache.values()
+      );
+
+      await this.replyChooseMember(interaction, embed.getTargetMembers());
+    });
+
+    this.client.on(Events.MessageReactionAdd, (reaction, user) => {
+      if (reaction.message.id !== this.client.embedMessage.id) return;
+      if (user.bot) return;
+      if (reaction.emoji.name !== "❌") return;
+
+      this.updateEmbedByReaction(reaction);
+    });
+
+    this.client.on(Events.MessageReactionRemove, (reaction) => {
+      if (reaction.message.id !== this.client.embedMessage.id) return;
+      if (reaction.emoji.name !== "❌") return;
+
+      this.updateEmbedByReaction(reaction);
     });
   }
 
@@ -143,19 +142,22 @@ exports.Handler = class Handler {
   }
 
   handleMessageCreate() {
-    this.client.on(Events.MessageCreate, (message) => {
-      console.log("Events.MessageCreate");
-      if (!message.mentions.users.has(this.client.user().id)) return;
-      if (message.author.id === this.client.user().id) return;
+    this.client.on(
+      Events.MessageCreate,
+      (message) => {
+        if (!message.mentions.users.has(this.client.user().id)) return;
+        if (message.author.id === this.client.user().id) return;
 
-      const joinedVoiceChannel = this.getVoiceChannel(message);
+        const joinedVoiceChannel = this.getVoiceChannel(message);
 
-      if (joinedVoiceChannel) {
-        return this.replyChooseMember(message, joinedVoiceChannel.members);
-      } else {
-        return this.replyJoiningVoiceChannel(message);
-      }
-    });
+        if (joinedVoiceChannel) {
+          return this.replyChooseMember(message, joinedVoiceChannel.members);
+        } else {
+          return this.replyJoiningVoiceChannel(message);
+        }
+      },
+      false
+    );
   }
 
   replyChooseMember(r, members) {
