@@ -1,5 +1,5 @@
 const { Client, GatewayIntentBits } = require("discord.js");
-const { Handler } = require("./handlers");
+const { Manager } = require("./manager");
 
 const client = new Client({
   intents: [
@@ -11,6 +11,6 @@ const client = new Client({
   ],
 });
 
-const handler = new Handler(client);
+const manager = new Manager(client);
 
-handler.start();
+manager.start();
