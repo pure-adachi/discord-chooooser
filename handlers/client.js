@@ -4,9 +4,10 @@ const { Embed } = require("./embed");
 exports.Client = class Client {
   constructor(client) {
     this.client = client;
-    this.events = [];
-    this.channel = null;
-    this.embedMessage = null;
+    this.guilds = {};
+    // this.events = [];
+    // this.channel = null;
+    // this.embedMessage = null;
   }
 
   login() {
@@ -17,41 +18,70 @@ exports.Client = class Client {
     this.client.commands = new Collection();
   }
 
-  setChannel(channel) {
-    this.channel = channel;
+  findOrInitGuild(guildId, channelId) {
+    if (!this.guilds[guildId]) {
+      this.guilds[guildId] = {};
+    }
+    if (!this.guilds[guildId][channelId]) {
+      this.guilds[guildId][channelId] = {
+        guildId,
+        channel: null,
+        events: [],
+        embedMessage: null,
+      };
+    }
+
+    return this.guilds[guildId][channelId];
   }
 
-  setEmbedMessage(message) {
-    this.embedMessage = message;
+  setChannel(guildId, channel) {
+    this.findOrInitGuild();
+
+    this.guilds[guildId][channel.id].channel = channel;
   }
 
-  on(event, callback, isAdd = true) {
-    if (isAdd) this.events.push({ event, callback });
-    this.client.on(event, callback);
+  setEmbedMessage(guildId, channelId, message) {
+    this.findOrInitGuild();
+
+    this.guilds[guildId][channelId].embedMessage = message;
   }
 
-  reset() {
-    this.updateFinishedEmbed();
-    this.removeAllEvents();
-    this.channel = null;
-    this.embedMessage = null;
+  handleOn(guildId, channelId, event, callback) {
+    this.findOrInitGuild();
+
+    this.guilds[guildId][channelId].events.push({ event, callback });
+    this.on(event, callback);
   }
 
-  updateFinishedEmbed() {
-    if (!this.channel) return;
-    if (!this.embedMessage) return;
+  reset(guildId, channelId) {
+    const guild = this.findOrInitGuild(guildId, channelId);
+    if (!guild.channel) return;
+    if (!guild.embedMessage) return;
 
-    this.embedMessage.edit({
-      embeds: [new Embed(this.channel).getFinishedEmbed()],
+    this.updateFinishedEmbed(guild);
+    this.removeEvents(guild);
+
+    this.guilds[guildId][channelId].channel = null;
+    this.guilds[guildId][channelId].embedMessage = null;
+  }
+
+  updateFinishedEmbed(guild) {
+    guild.embedMessage.edit({
+      embeds: [new Embed(guild.channel).getFinishedEmbed()],
       components: [],
     });
   }
 
-  removeAllEvents() {
-    this.events.forEach(({ event, callback }) => {
+  removeEvents(guild) {
+    guild.events.forEach(({ event, callback }) => {
       this.client.off(event, callback);
     });
-    this.events = [];
+    this.guilds[guild.guildId][guild.channel.id].events = [];
+  }
+
+  // wrapper method
+  on(event, callback) {
+    this.client.on(event, callback);
   }
 
   // wrapper method

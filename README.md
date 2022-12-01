@@ -16,5 +16,6 @@ https://discord.com/api/oauth2/authorize?client_id=1046364323951431700&permissio
 - [x] 途中退出者を考慮
 - [x] ハンドリングの削除（全員退出時）
 - [x] ハンドリングの削除（古い抽選）
+  - [x] チャンネル別で管理（client インスタンスで guild -> voice チャンネル毎に情報をもつ）
 - [ ] リファクタリング
 - [ ] 15 分程度の放置に対応？
