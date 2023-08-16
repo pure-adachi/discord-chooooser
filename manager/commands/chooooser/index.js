@@ -214,8 +214,7 @@ exports.Chooooser = class {
 
   #replyChooseMember(r, members) {
     const member = members.random();
-    const memberName = member.nickname || member.user.username;
 
-    return r.reply(chooseMember(memberName));
+    return r.reply(chooseMember(member.displayName));
   }
 };

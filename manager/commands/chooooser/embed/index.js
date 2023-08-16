@@ -77,12 +77,11 @@ exports.Embed = class {
       });
 
     this.#getChannelMembers().each((member) => {
-      const memberName = member.nickname || member.user.username;
       const isTarget =
         this.ignoreUsers.map(({ id }) => id).indexOf(member.user.id) < 0;
 
       embed.addFields({
-        name: memberName,
+        name: member.displayName,
         value: isTarget ? ":o:" : ":x:",
         inline: true,
       });
