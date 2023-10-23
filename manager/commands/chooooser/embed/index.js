@@ -8,15 +8,20 @@ const {
   messages: {
     name,
     gitHubUrl,
-    iconURL,
     commands: { chooooser: chooooserMessages },
   },
 } = require("../../../messages");
 
 exports.Embed = class {
-  constructor(channel, ignoreUsers = []) {
+  constructor(iconURL, channel, ignoreUsers = []) {
+    this.iconURL = iconURL;
     this.channel = channel;
     this.ignoreUsers = [...ignoreUsers];
+    this.electedUsers = {};
+  }
+
+  setElectedUsers(electedUsers) {
+    this.electedUsers = electedUsers
   }
 
   getReplyOptions() {
@@ -34,6 +39,33 @@ exports.Embed = class {
     );
   }
 
+  getElectoralQuota() {
+    let totalCount = 0;
+    let totalUnElectedCount = 0;
+
+    this.getTargetMembers().forEach(member => {
+      if (this.electedUsers[member.user.id]) {
+        totalCount += this.electedUsers[member.user.id]
+      }
+    })
+
+    const unElected = {}
+
+    this.getTargetMembers().forEach(member => {
+      const count = this.electedUsers[member.user.id] || 0
+      unElected[member.user.id] = 1 + (totalCount - count)
+      totalUnElectedCount += unElected[member.user.id]
+    })
+
+    const resultRates = {}
+
+    for (let [userId, count] of Object.entries(unElected)) {
+      resultRates[userId] = Math.floor(count / totalUnElectedCount * 100);
+    }
+
+    return resultRates
+  }
+
   getFinishedReplyOptions() {
     const embed = new EmbedBuilder()
       .setColor(0x0099ff)
@@ -41,7 +73,7 @@ exports.Embed = class {
       .setURL(gitHubUrl)
       .setAuthor({
         name,
-        iconURL,
+        iconURL: this.iconURL,
         url: gitHubUrl,
       });
 
@@ -58,7 +90,7 @@ exports.Embed = class {
       .setURL(gitHubUrl)
       .setAuthor({
         name,
-        iconURL,
+        iconURL: this.iconURL,
         url: gitHubUrl,
       })
       .addFields({
@@ -74,14 +106,17 @@ exports.Embed = class {
       })
       .setFooter({
         text: chooooserMessages.embedFooter,
-      });
+      })
+
+    const rates = this.getElectoralQuota()
 
     this.#getChannelMembers().each((member) => {
+      const rate = rates[member.user.id] || 0;
       const isTarget =
         this.ignoreUsers.map(({ id }) => id).indexOf(member.user.id) < 0;
 
       embed.addFields({
-        name: member.displayName,
+        name: `${member.displayName}(${rate}%)`,
         value: isTarget ? ":o:" : ":x:",
         inline: true,
       });
@@ -93,9 +128,14 @@ exports.Embed = class {
   #getBtnComponent() {
     return new ActionRowBuilder().addComponents(
       new ButtonBuilder()
-        .setCustomId(`${this.channel.id}-${chooooserMessages.name}-button`)
-        .setLabel(chooooserMessages.start)
+        .setCustomId(`${this.channel.id}-${chooooserMessages.name}-simple-button`)
+        .setLabel(chooooserMessages.startSimpleLottery)
         .setStyle(ButtonStyle.Primary)
+        .setDisabled(this.getTargetMembers().size === 0),
+      new ButtonBuilder()
+        .setCustomId(`${this.channel.id}-${chooooserMessages.name}-fair-button`)
+        .setLabel(chooooserMessages.startFairLottery)
+        .setStyle(ButtonStyle.Success)
         .setDisabled(this.getTargetMembers().size === 0)
     );
   }

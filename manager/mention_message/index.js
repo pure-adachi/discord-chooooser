@@ -18,7 +18,7 @@ exports.MentionMessage = class {
       if (voiceChannel) {
         const member = voiceChannel.members.random();
 
-        message.reply(messages.chooseMember(member.displayName));
+        message.reply(messages.chooseMember(`<@${member.user.id}>`));
       } else {
         message.reply(messages.joinTheVoiceChannel);
       }

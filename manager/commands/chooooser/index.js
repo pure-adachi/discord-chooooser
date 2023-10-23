@@ -70,18 +70,40 @@ exports.Chooooser = class {
   async #replayStartMessage(ins, guildId, channelId) {
     const channel = this.#findOrInitGuild(guildId, channelId).channel;
 
-    const embed = new Embed(channel);
+    const embed = new Embed(this.client.user.avatarURL(), channel);
     const message = await ins.reply(embed.getReplyOptions());
-    message.react(chooooserMessages.excludeReaction);
+    await message.react(chooooserMessages.excludeReaction);
 
     this.#setEmbedMessage(guildId, channelId, message);
 
     this.#handleInstanceEvents(guildId, channelId, message);
+
+    ins.channel.messages.fetch({ limit: 100 }).then(messages => {
+      this.guilds[guildId][channelId].electedUsers = {};
+
+      messages.forEach(message => {
+        if (!message.member) return
+        if (message.member.user.id !== this.client.user.id) return
+        if (!message.content) return
+        if (!new RegExp(`^${chooseMember("(.+)")}$`).test(message.content)) return
+
+        message.mentions.members.forEach(member => {
+          if (this.guilds[guildId][channelId].electedUsers[member.user.id]) {
+            this.guilds[guildId][channelId].electedUsers[member.user.id]++
+          } else {
+            this.guilds[guildId][channelId].electedUsers[member.user.id] = 1
+          }
+        })
+      })
+    }).then(() => {
+      this.#updateEmbed(channel, message);
+    })
   }
 
   #handleInstanceEvents(guildId, channelId, message) {
     this.#handleJoinOrLeaveFromVoiceChannelEvent(guildId, channelId, message);
-    this.#handleClickChooooserButtonEvent(guildId, channelId);
+    this.#handleClickChooooserSimpleButtonEvent(guildId, channelId);
+    this.#handleClickChooooserFairButtonEvent(guildId, channelId);
     this.#handleAddExcludeReactionEvent(guildId, channelId);
     this.#handleRemoveExcludeReactionEvent(guildId, channelId);
   }
@@ -112,19 +134,55 @@ exports.Chooooser = class {
     });
   }
 
-  #handleClickChooooserButtonEvent(guildId, channelId) {
+  #handleClickChooooserSimpleButtonEvent(guildId, channelId) {
     const callback = (interaction) => {
       if (!interaction.isButton()) return;
       if (
-        interaction.customId !== `${channelId}-${chooooserMessages.name}-button`
+        interaction.customId !== `${channelId}-${chooooserMessages.name}-simple-button`
       )
         return;
 
       const excludeReaction = this.#getExcludeReaction(interaction.message);
       const channel = this.#findOrInitGuild(guildId, channelId).channel;
-      const embed = new Embed(channel, excludeReaction.users.cache.values());
+      const embed = new Embed(this.client.user.avatarURL(), channel, excludeReaction.users.cache.values());
 
-      this.#replyChooseMember(interaction, embed.getTargetMembers());
+      const member = embed.getTargetMembers().random();
+
+      this.#replyChooseMember(interaction, member);
+    };
+
+    this.client.on(Events.InteractionCreate, callback);
+
+    this.guilds[guildId][channelId].events.push({
+      event: Events.InteractionCreate,
+      callback,
+    });
+  }
+
+  #handleClickChooooserFairButtonEvent(guildId, channelId) {
+    const callback = (interaction) => {
+      if (!interaction.isButton()) return;
+      if (
+        interaction.customId !== `${channelId}-${chooooserMessages.name}-fair-button`
+      )
+        return;
+
+      const excludeReaction = this.#getExcludeReaction(interaction.message);
+      const channel = this.#findOrInitGuild(guildId, channelId).channel;
+      const embed = new Embed(this.client.user.avatarURL(), channel, excludeReaction.users.cache.values());
+
+      embed.setElectedUsers(this.guilds[guildId][channelId].electedUsers)
+      const rates = embed.getElectoralQuota()
+
+      const targetMembers = []
+
+      embed.getTargetMembers().forEach(member => {
+        targetMembers.push(...Array(rates[member.user.id]).fill({ ...member }));
+      })
+
+      const member = targetMembers[Math.floor(Math.random() * targetMembers.length)];
+
+      this.#replyChooseMember(interaction, member);
     };
 
     this.client.on(Events.InteractionCreate, callback);
@@ -173,9 +231,9 @@ exports.Chooooser = class {
 
   #updateEmbed(channel, message) {
     const excludeReaction = this.#getExcludeReaction(message);
-    message.edit(
-      new Embed(channel, excludeReaction.users.cache.values()).getReplyOptions()
-    );
+    const embed = new Embed(this.client.user.avatarURL(), channel, excludeReaction.users.cache.values());
+    embed.setElectedUsers(this.guilds[channel.guildId][channel.id].electedUsers)
+    message.edit(embed.getReplyOptions());
   }
 
   #getExcludeReaction(message) {
@@ -185,7 +243,7 @@ exports.Chooooser = class {
   }
 
   #updateFinishedEmbed(guild) {
-    guild.embedMessage.edit(new Embed(guild.channel).getFinishedReplyOptions());
+    guild.embedMessage.edit(new Embed(this.client.user.avatarURL(), guild.channel).getFinishedReplyOptions());
   }
 
   #removeEvents(guild) {
@@ -206,15 +264,14 @@ exports.Chooooser = class {
         channel: null,
         events: [],
         embedMessage: null,
+        electedUsers: {},
       };
     }
 
     return this.guilds[guildId][channelId];
   }
 
-  #replyChooseMember(r, members) {
-    const member = members.random();
-
-    return r.reply(chooseMember(member.displayName));
+  #replyChooseMember(r, member) {
+    return r.reply(chooseMember(`<@${member.user.id}>`));
   }
 };

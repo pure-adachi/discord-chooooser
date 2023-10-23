@@ -1,8 +1,6 @@
 exports.messages = {
   name: "Chooooser",
   gitHubUrl: "https://github.com/pure-adachi/discord-chooooser",
-  iconURL:
-    "https://res.cloudinary.com/dbqa4qhvd/image/upload/v1669553905/chooooser_kdpyyw.png",
   chooseMember: (name) => `選ばれたのは ${name} さんです。`,
   joinTheVoiceChannel: "ボイスチャンネルに入室しましょう",
   commands: {
@@ -10,7 +8,8 @@ exports.messages = {
       name: "chooooser",
       description: "Chooooserで抽選",
       excludeReaction: "❌",
-      start: "抽選開始！",
+      startSimpleLottery: "抽選開始",
+      startFairLottery: "抽選開始（当選率考慮）",
       embedTitle: (name) => `${name} チャンネルで抽選を行います。`,
       embedFinishedTitle: (name) =>
         `${name} チャンネルでの抽選は終了しました。`,
@@ -18,7 +17,7 @@ exports.messages = {
       targetCount: "抽選対象数",
       targetCountValue: (mol, den) => `${mol} / ${den}`,
       embedFooter:
-        "抽選対象から外して欲しい場合は、 ❌ のリアクションを押してください。",
+        "抽選対象から外して欲しい場合は、 ❌ のリアクションを押してください。\n※名前の横にある確率は当選率を考慮して抽選を行う場合の当選確率です。"
     },
   },
 };
