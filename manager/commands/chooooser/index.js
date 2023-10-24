@@ -87,11 +87,11 @@ exports.Chooooser = class {
         if (!message.content) return
         if (!new RegExp(`^${chooseMember("(.+)")}$`).test(message.content)) return
 
-        message.mentions.members.forEach(member => {
-          if (this.guilds[guildId][channelId].electedUsers[member.user.id]) {
-            this.guilds[guildId][channelId].electedUsers[member.user.id]++
+        message.mentions.parsedUsers.forEach(user => {
+          if (this.guilds[guildId][channelId].electedUsers[user.id]) {
+            this.guilds[guildId][channelId].electedUsers[user.id]++;
           } else {
-            this.guilds[guildId][channelId].electedUsers[member.user.id] = 1
+            this.guilds[guildId][channelId].electedUsers[user.id] = 1;
           }
         })
       })
