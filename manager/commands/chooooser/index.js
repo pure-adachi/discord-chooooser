@@ -76,7 +76,7 @@ exports.Chooooser = class {
 
     this.#setEmbedMessage(guildId, channelId, message);
 
-    this.#handleInstanceEvents(guildId, channelId, message);
+    this.#handleInstanceEvents(guildId, channelId);
 
     ins.channel.messages.fetch({ limit: 100 }).then(messages => {
       this.guilds[guildId][channelId].electedUsers = {};
@@ -96,29 +96,36 @@ exports.Chooooser = class {
         })
       })
     }).then(() => {
+      console.log("replayStartMessage", "/chooooserコマンドが実行されました")
       this.#updateEmbed(channel, message);
     })
   }
 
-  #handleInstanceEvents(guildId, channelId, message) {
-    this.#handleJoinOrLeaveFromVoiceChannelEvent(guildId, channelId, message);
+  #handleInstanceEvents(guildId, channelId) {
+    this.#handleJoinOrLeaveFromVoiceChannelEvent(guildId, channelId);
     this.#handleClickChooooserSimpleButtonEvent(guildId, channelId);
     this.#handleClickChooooserFairButtonEvent(guildId, channelId);
     this.#handleAddExcludeReactionEvent(guildId, channelId);
     this.#handleRemoveExcludeReactionEvent(guildId, channelId);
   }
 
-  #handleJoinOrLeaveFromVoiceChannelEvent(guildId, channelId, message) {
+  #handleJoinOrLeaveFromVoiceChannelEvent(guildId, channelId) {
     const callback = (oldState, newState) => {
       const channel = this.#findOrInitGuild(guildId, channelId).channel;
 
       switch (channel.id) {
         case newState.channelId:
-          this.#updateEmbed(channel, message);
+          if (oldState.channelId === newState.channelId) {
+            console.log("handleJoinOrLeaveFromVoiceChannelEvent", "ボイスチャンネルへの参加者がミュートなどの動作を行いました。")
+          } else {
+            console.log("handleJoinOrLeaveFromVoiceChannelEvent", "ボイスチャンネルに参加者が追加されました。")
+            this.#updateEmbed(channel);
+          }
           break;
         case oldState.channelId:
           if (channel.members.size) {
-            this.#updateEmbed(channel, message);
+            console.log("handleJoinOrLeaveFromVoiceChannelEvent", "ボイスチャンネルから参加者が退出されました。")
+            this.#updateEmbed(channel);
           } else {
             this.#resetHandlers(guildId, channelId);
           }
@@ -200,7 +207,9 @@ exports.Chooooser = class {
       if (user.bot) return;
       if (reaction.emoji.name !== chooooserMessages.excludeReaction) return;
 
-      this.#updateEmbed(guild.channel, reaction.message);
+      console.log("handleAddExcludeReactionEvent", "❌リアクションが追加されました。", user.displayName)
+      this.guilds[guildId][channelId].embedMessage = reaction.message;
+      this.#updateEmbed(guild.channel);
     };
 
     this.client.on(Events.MessageReactionAdd, callback);
@@ -212,13 +221,15 @@ exports.Chooooser = class {
   }
 
   #handleRemoveExcludeReactionEvent(guildId, channelId) {
-    const callback = (reaction) => {
+    const callback = (reaction, user) => {
       const guild = this.#findOrInitGuild(guildId, channelId);
       if (reaction.message.id !== guild.embedMessage.id) return;
 
       if (reaction.emoji.name !== chooooserMessages.excludeReaction) return;
 
-      this.#updateEmbed(guild.channel, reaction.message);
+      console.log("handleRemoveExcludeReactionEvent", "❌リアクションが削除されました。", user.displayName)
+      this.guilds[guildId][channelId].embedMessage = reaction.message;
+      this.#updateEmbed(guild.channel);
     };
 
     this.client.on(Events.MessageReactionRemove, callback);
@@ -229,7 +240,8 @@ exports.Chooooser = class {
     });
   }
 
-  #updateEmbed(channel, message) {
+  #updateEmbed(channel) {
+    const message = this.guilds[channel.guildId][channel.id].embedMessage;
     const excludeReaction = this.#getExcludeReaction(message);
     const embed = new Embed(this.client.user.avatarURL(), channel, excludeReaction.users.cache.values());
     embed.setElectedUsers(this.guilds[channel.guildId][channel.id].electedUsers)
